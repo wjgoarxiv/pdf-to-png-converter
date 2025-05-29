@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>PDF를 PNG로 변환하기</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100;300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script><style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }        body {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+            padding: 24px;
+            color: #191f28;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #ffffff;
+            padding: 48px 32px 32px 32px;
+            text-align: center;
+            border-bottom: 1px solid #f2f4f6;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 12px;
+            font-weight: 700;
+            color: #191f28;
+        }
+
+        .header p {
+            font-size: 16px;
+            color: #8b95a1;
+            font-weight: 400;
+        }
+
+        .content {
+            padding: 32px;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border: 2px dashed #e5e8eb;
+            border-radius: 12px;
+            padding: 48px 32px;
+            text-align: center;
+            margin-bottom: 32px;
+            transition: all 0.2s ease;
+        }
+
+        .upload-section.dragover {
+            border-color: #3182f6;
+            background: #f0f8ff;
+        }
+
+        .upload-section h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #191f28;
+        }
+
+        .upload-section p {
+            color: #8b95a1;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: #3182f6;
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 8px;
+        }
+
+        .upload-btn:hover {
+            background: #1c64d8;
+        }
+
+        .upload-btn:active {
+            transform: scale(0.98);
+        }
+
+        .dpi-control {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            display: none;
+        }
+
+        .dpi-control.show {
+            display: block;
+        }
+
+        .dpi-control h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            color: #191f28;
+        }
+
+        .dpi-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .dpi-slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #e5e8eb;
+            outline: none;
+            appearance: none;
+        }
+
+        .dpi-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3182f6;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .dpi-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3182f6;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }        .dpi-value {
+            min-width: 80px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #3182f6;
+            background: #f0f8ff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            line-height: 1.2;
+        }
+
+        .dpi-presets {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .dpi-preset-btn {
+            background: #f2f4f6;
+            color: #4e5968;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .dpi-preset-btn:hover {
+            background: #3182f6;
+            color: white;
+        }
+
+        .dpi-preset-btn.active {
+            background: #3182f6;
+            color: white;
+        }
+
+        .info-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            display: none;
+        }
+
+        .info-panel.show {
+            display: block;
+        }
+
+        .info-panel h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            color: #191f28;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 12px 0;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .info-item strong {
+            font-weight: 600;
+        }
+
+        .progress-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            display: none;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: #e5e8eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #3182f6;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin: 16px 0 0 0;
+            font-weight: 500;
+            color: #191f28;
+            font-size: 14px;
+        }
+
+        .download-section {
+            display: none;
+            margin-top: 32px;
+        }
+
+        .download-section.show {
+            display: block;
+        }
+
+        .download-section h3 {
+            font-size: 18px;
+            margin-bottom: 24px;
+            font-weight: 600;
+            color: #191f28;
+        }
+
+        .download-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .download-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.2s ease;
+            border: 1px solid #f2f4f6;
+        }
+
+        .download-card:hover {
+            border-color: #3182f6;
+            background: #f0f8ff;
+        }
+
+        .download-card h4 {
+            color: #191f28;
+            margin-bottom: 8px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .download-card p {
+            color: #8b95a1;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .pages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin: 24px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .page-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #f2f4f6;
+        }
+
+        .page-item:hover {
+            border-color: #3182f6;
+        }
+
+        .page-item.selected {
+            border-color: #3182f6;
+            background: #f0f8ff;
+        }
+
+        .page-preview {
+            width: 100%;
+            height: 100px;
+            object-fit: contain;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .page-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #191f28;
+            margin-bottom: 8px;
+        }
+
+        .btn-primary {
+            background: #3182f6;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 4px;
+        }
+
+        .btn-primary:hover {
+            background: #1c64d8;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #f2f4f6;
+            color: #4e5968;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 4px;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e8eb;
+        }
+
+        .selection-controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 24px;
+            }
+            
+            .download-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .pages-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .header {
+                padding: 32px 24px 24px 24px;
+            }
+        }
+    </style>
+</head>
+<body>    <div class="container">
+        <div class="header">
+            <h1>PDF를 PNG로 변환하기</h1>
+            <p>PDF 파일을 고화질 PNG 이미지로 간편하게 변환해보세요</p>
+        </div>
+        
+        <div class="content">            <div class="upload-section" id="uploadSection">
+                <h3>📄 PDF 파일 업로드</h3>
+                <p>PDF 파일을 여기에 드래그하거나 클릭해서 선택해주세요</p>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    PDF 파일 선택하기
+                </button>
+            </div>            <div class="dpi-control" id="dpiControl">
+                <h3>🎯 이미지 품질 설정</h3>
+                <p style="color: #8b95a1; font-size: 14px; margin-bottom: 16px;">슬라이더를 움직여서 원하는 화질을 선택해주세요 (72~600 DPI)</p>
+                <div class="dpi-slider-container">
+                    <span style="font-size: 12px; color: #8b95a1; text-align: center;">웹용<br>(72 DPI)</span>
+                    <input type="range" id="dpiSlider" class="dpi-slider" min="72" max="600" step="1" value="144">
+                    <span style="font-size: 12px; color: #8b95a1; text-align: center;">인쇄용<br>(600 DPI)</span>
+                    <div class="dpi-value" id="dpiValue">
+                        <div style="font-size: 14px; font-weight: 600;">2.0x</div>
+                        <div style="font-size: 11px; color: #8b95a1;" id="dpiActual">144 DPI</div>
+                    </div>
+                </div>
+                <div class="dpi-presets" style="margin-top: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                    <button class="dpi-preset-btn" onclick="setDPI(72)">웹용 (72)</button>
+                    <button class="dpi-preset-btn" onclick="setDPI(150)">표준 (150)</button>
+                    <button class="dpi-preset-btn" onclick="setDPI(300)">인쇄 (300)</button>
+                    <button class="dpi-preset-btn" onclick="setDPI(600)">고품질 (600)</button>
+                </div>
+            </div>
+
+            <div class="info-panel" id="infoPanel">
+                <h3>📊 PDF 정보</h3>
+                <div class="info-item">
+                    <span><strong>파일명</strong></span>
+                    <span id="fileName">-</span>
+                </div>
+                <div class="info-item">
+                    <span><strong>총 페이지 수</strong></span>
+                    <span id="totalPages">-</span>
+                </div>
+                <div class="info-item">
+                    <span><strong>파일 크기</strong></span>
+                    <span id="fileSize">-</span>
+                </div>
+            </div>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-text" id="progressText">처리 중...</div>
+            </div>
+
+            <div class="download-section" id="downloadSection">
+                <h3>💾 다운로드 옵션</h3>
+                
+                <div class="download-options">
+                    <div class="download-card">
+                        <h4>🗜️ 전체 ZIP 다운로드</h4>
+                        <p>모든 변환된 PNG 파일을 하나의 ZIP 파일로 다운로드해요</p>
+                        <button class="btn-primary" onclick="downloadAllAsZip()">
+                            ZIP 파일 다운로드
+                        </button>
+                    </div>
+                    
+                    <div class="download-card">
+                        <h4>🖼️ 개별 페이지 다운로드</h4>
+                        <p>원하는 페이지만 골라서 개별 다운로드할 수 있어요</p>
+                        <button class="btn-primary" onclick="showPageSelection()">
+                            페이지 선택하기
+                        </button>
+                    </div>
+                </div>
+
+                <div id="pageSelectionSection" style="display: none;">
+                    <h4>다운로드할 페이지를 선택해주세요</h4>
+                    <div class="selection-controls">
+                        <button class="btn-secondary" onclick="selectAllPages()">전체 선택</button>
+                        <button class="btn-secondary" onclick="deselectAllPages()">전체 해제</button>
+                        <button class="btn-primary" onclick="downloadSelectedPages()">선택한 페이지 다운로드</button>
+                    </div>
+                    <div class="pages-grid" id="pagesGrid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
