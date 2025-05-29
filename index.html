@@ -499,7 +499,8 @@
                     
                     <div class="download-card">
                         <h4>🖼️ 개별 페이지 다운로드</h4>
-                        <p>원하는 페이지만 골라서 개별 다운로드할 수 있어요</p>
+                        <p>원하는 페이지만 골라서 다운로드할 수 있어요<br>
+                        <small style="color: #8b95a1;">※ 10페이지 이상 선택시 ZIP 다운로드를 권장해요</small></p>
                         <button class="btn-primary" onclick="showPageSelection()">
                             페이지 선택하기
                         </button>
@@ -512,6 +513,7 @@
                         <button class="btn-secondary" onclick="selectAllPages()">전체 선택</button>
                         <button class="btn-secondary" onclick="deselectAllPages()">전체 해제</button>
                         <button class="btn-primary" onclick="downloadSelectedPages()">선택한 페이지 다운로드</button>
+                        <span id="selectedCount" style="margin-left: 12px; font-size: 14px; color: #8b95a1;"></span>
                     </div>
                     <div class="pages-grid" id="pagesGrid"></div>
                 </div>

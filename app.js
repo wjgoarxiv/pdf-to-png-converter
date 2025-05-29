@@ -6,6 +6,9 @@ class PDFConverter {    constructor() {
         this.isProcessing = false;
         this.currentDPI = 144; // Default to 144 DPI (2x scale)
         
+        this.downloadQueue = [];
+        this.isDownloading = false;
+        
         this.initializeEventListeners();
         this.setupPDFJS();
         this.setupDPIControl();
@@ -314,15 +317,103 @@ class PDFConverter {    constructor() {
         }
     }
 
-    downloadSelectedPages() {
+    async downloadSelectedPages() {
         if (this.selectedPages.size === 0) {
             alert('다운로드할 페이지를 최소 1개 이상 선택해주세요.');
             return;
         }
 
-        this.selectedPages.forEach(pageNum => {
-            this.downloadSinglePage(pageNum);
-        });
+        if (this.isDownloading) {
+            alert('현재 다운로드가 진행 중입니다. 잠시만 기다려주세요.');
+            return;
+        }
+
+        // If more than 10 pages selected, suggest ZIP download
+        if (this.selectedPages.size > 10) {
+            const useZip = confirm(`${this.selectedPages.size}개의 페이지를 선택하셨습니다.\n\n개별 다운로드는 브라우저 제한으로 인해 시간이 오래 걸릴 수 있습니다.\n\nZIP 파일로 한번에 다운로드하시겠습니까?\n\n확인: ZIP 다운로드\n취소: 개별 다운로드 (시간 소요)`);
+            
+            if (useZip) {
+                await this.downloadSelectedAsZip();
+                return;
+            }
+        }
+
+        await this.downloadPagesSequentially();
+    }
+
+    async downloadSelectedAsZip() {
+        if (this.selectedPages.size === 0) return;
+
+        this.showProgress('선택된 페이지 ZIP 파일 생성 중...');
+        
+        try {
+            const zip = new JSZip();
+            
+            let current = 0;
+            for (const pageNum of this.selectedPages) {
+                current++;
+                this.updateProgress(current, this.selectedPages.size);
+                
+                const pageData = this.convertedPages.get(pageNum);
+                if (pageData) {
+                    zip.file(pageData.fileName, pageData.blob);
+                }
+            }
+            
+            const zipBlob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            });
+            
+            this.downloadBlob(zipBlob, 'selected_pages.zip');
+            
+        } catch (error) {
+            console.error('선택된 페이지 ZIP 파일 생성 오류:', error);
+            alert('ZIP 파일을 만드는 중 오류가 발생했어요.');
+        } finally {
+            this.hideProgress();
+        }
+    }
+
+    async downloadPagesSequentially() {
+        this.isDownloading = true;
+        const selectedArray = Array.from(this.selectedPages).sort((a, b) => a - b);
+        
+        this.showProgress('페이지 다운로드 중...');
+        
+        try {
+            for (let i = 0; i < selectedArray.length; i++) {
+                const pageNum = selectedArray[i];
+                this.updateProgress(i + 1, selectedArray.length);
+                
+                const pageData = this.convertedPages.get(pageNum);
+                if (pageData) {
+                    this.downloadBlob(pageData.blob, pageData.fileName);
+                    
+                    // Add delay between downloads to avoid browser limits
+                    if (i < selectedArray.length - 1) {
+                        await this.delay(500); // 500ms delay between downloads
+                    }
+                }
+            }
+            
+            // Show completion message
+            setTimeout(() => {
+                alert(`${selectedArray.length}개 페이지 다운로드가 완료되었습니다.`);
+            }, 1000);
+            
+        } catch (error) {
+            console.error('페이지 다운로드 오류:', error);
+            alert('페이지 다운로드 중 오류가 발생했어요.');
+        } finally {
+            this.isDownloading = false;
+            this.hideProgress();
+        }
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     downloadSinglePage(pageNum) {
